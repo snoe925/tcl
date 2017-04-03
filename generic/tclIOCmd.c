@@ -1486,15 +1486,16 @@ Tcl_SocketObjCmd(
 {
     static const char *const socketOptions[] = {
 	"-async", "-myaddr", "-myport", "-reuseaddr", "-reuseport", "-server",
-	NULL
+	"-backlog", NULL
     };
     enum socketOptions {
 	SKT_ASYNC, SKT_MYADDR, SKT_MYPORT, SKT_REUSEADDR, SKT_REUSEPORT,
-	SKT_SERVER
+	SKT_SERVER, SKT_BACKLOG
     };
     int optionIndex, a, server = 0, myport = 0, async = 0, reusep = -1,
 	reusea = -1;
     unsigned int flags = 0;
+    int backlog = -1;
     const char *host, *port, *myaddr = NULL;
     Tcl_Obj *script = NULL;
     Tcl_Channel chan;
@@ -1583,6 +1584,26 @@ Tcl_SocketObjCmd(
 		return TCL_ERROR;
 	    }
 	    break;
+	case SKT_BACKLOG: {
+	    long myBacklog;
+	    char *end = NULL;
+
+	    a++;
+	    if (a >= objc) {
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(
+			"no argument given for -backlog option", -1));
+		return TCL_ERROR;
+	    }
+	    myBacklog = strtol(TclGetString(objv[a]), &end, 10);
+	    if (end == NULL || *end != 0) {
+			Tcl_SetObjResult(interp, Tcl_NewStringObj(
+				"unable to parse backlog int value", -1));
+			return TCL_ERROR;
+	    }
+	    backlog = (int)myBacklog;
+	    }
+ 	    break;
+
 	default:
 	    Tcl_Panic("Tcl_SocketObjCmd: bad option index to SocketOptions");
 	}
@@ -1607,13 +1628,13 @@ Tcl_SocketObjCmd(
 	iPtr->flags |= INTERP_ALTERNATE_WRONG_ARGS;
 	Tcl_WrongNumArgs(interp, 1, objv,
 		"-server command ?-reuseaddr boolean? ?-reuseport boolean? "
-		"?-myaddr addr? port");
+		"?-backlog int? ?-myaddr addr? port");
 	return TCL_ERROR;
     }
 
-    if (!server && (reusea != -1 || reusep != -1)) {
+    if (!server && (reusea != -1 || reusep != -1 || backlog != -1)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"options -reuseaddr and -reuseport are only valid for servers",
+		"options -reuseaddr, -reuseport and backlog are only valid for servers",
 		-1));
 	return TCL_ERROR;
     }
@@ -1645,7 +1666,7 @@ Tcl_SocketObjCmd(
 	acceptCallbackPtr->script = script;
 	acceptCallbackPtr->interp = interp;
 
-	chan = Tcl_OpenTcpServerEx(interp, port, host, flags, AcceptCallbackProc,
+	chan = Tcl_OpenTcpServerEx(interp, port, host, flags, backlog, AcceptCallbackProc,
 				   acceptCallbackPtr);
 	if (chan == NULL) {
 	    Tcl_DecrRefCount(script);

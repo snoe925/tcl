@@ -308,7 +308,7 @@ Tcl_Channel Tcl_OpenTcpServer(Tcl_Interp *interp, int port,
 
     TclFormatInt(portbuf, port);
 
-    return Tcl_OpenTcpServerEx(interp, portbuf, host, TCL_TCPSERVER_REUSEADDR,
+    return Tcl_OpenTcpServerEx(interp, portbuf, host, TCL_TCPSERVER_REUSEADDR, -1,
 			       acceptProc, callbackData);
 }
 
